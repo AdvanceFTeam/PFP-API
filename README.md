@@ -141,6 +141,22 @@ Free-to-use Discord and GitHub profile picture (PFP) API.
 
 ---
 
+**Get GitHub Repositories:**
+
+* **URL:** `/api/github/:username/repos`
+* **Method:** GET
+* **Description:** Returns a list of public repositories for the GitHub user.
+
+---
+
+**Get GitHub Gists:**
+
+* **URL:** `/api/github/:username/gists`
+* **Method:** GET
+* **Description:** Returns a list of public gists for the GitHub user.
+
+---
+
 ### Full Endpoint Table
 
 | Endpoint                         | Method | Description                                                      |
@@ -157,10 +173,13 @@ Free-to-use Discord and GitHub profile picture (PFP) API.
 | `/api/banner/:userId/image`      | GET    | Redirects to banner image                                        |
 | `/api/github/:username`          | GET    | Returns GitHub user info (JSON)                                  |
 | `/api/github/:username/pfp`      | GET    | Redirects to GitHub avatar image                                 |
+| `/api/github/:username/repos`    | GET    | Returns list of public repositories for GitHub user              |
+| `/api/github/:username/gists`    | GET    | Returns list of public gists for GitHub user                     |
 
 ---
 
 DOC (Ignore):
-- https://api.github.com/
-- https://docs.github.com/en/rest?apiVersion=2022-11-28
-- https://discord.com/developers/docs/intro
+
+* [https://api.github.com/](https://api.github.com/)
+* [https://docs.github.com/en/rest?apiVersion=2022-11-28](https://docs.github.com/en/rest?apiVersion=2022-11-28)
+* [https://discord.com/developers/docs/intro](https://discord.com/developers/docs/intro)
