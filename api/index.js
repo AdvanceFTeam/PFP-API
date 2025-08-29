@@ -125,16 +125,21 @@ app.get("/api", (req, res) => {
       { url: "/api/pfp/:userId/:size", description: "Redirect to avatar with custom size (64–4096)" },
       { url: "/api/banner/:userId", description: "Get banner URL JSON for a user (JSON)" },
       { url: "/api/banner/:userId/image", description: "Redirect to banner image" },
+
       { url: "/api/github/:username", description: "Get GitHub user JSON info" },
       { url: "/api/github/:username/pfp", description: "Redirect to GitHub avatar image" },
-      { url: "/api/status", description: "Get overall API status and uptime" }
+      { url: "/api/github/:username/repos", description: "Get GitHub repositories for user" },
+      { url: "/api/github/:username/gists", description: "Get GitHub gists for user" },
+
+      { url: "/api/status", description: "Get overall API status and uptime (W.I.P)" },
+      { url: "/api/status/services", description: "Get per-service status and uptime" }
     ],
   });
 });
 
 app.get("/api/version", (req, res) => {
   res.json({
-    version: "2.0.0",
+    version: "2.0.1",
     name: "Avatarcyan API",
     environment: process.env.NODE_ENV || "production",
     lastBuild: new Date().toISOString()
@@ -303,6 +308,55 @@ app.get("/api/github/:username", async (req, res) => {
   }
 });
 
+app.get("/api/github/:username/repos", async (req, res) => {
+  const { username } = req.params;
+  try {
+    const data = await fetch_cached(`github_${username}_repos`, async () => {
+      const r = await fetch(`https://api.github.com/users/${username}/repos`, {
+        headers: { Authorization: `token ${GITHUB_TOKEN}`, "User-Agent": "Node.js Server" },
+      });
+      if (!r.ok) throw new Error(`GitHub API error: ${r.status}`);
+      return r.json();
+    });
+    res.json(data.map(repo => ({
+      name: repo.name,
+      description: repo.description,
+      url: repo.html_url,
+      forks: repo.forks_count,
+      stars: repo.stargazers_count,
+      language: repo.language,
+      updated_at: repo.updated_at
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Could not fetch repositories" });
+  }
+});
+
+app.get("/api/github/:username/gists", async (req, res) => {
+  const { username } = req.params;
+  try {
+    const data = await fetch_cached(`github_${username}_gists`, async () => {
+      const r = await fetch(`https://api.github.com/users/${username}/gists`, {
+        headers: { Authorization: `token ${GITHUB_TOKEN}`, "User-Agent": "Node.js Server" },
+      });
+      if (!r.ok) throw new Error(`GitHub API error: ${r.status}`);
+      return r.json();
+    });
+    res.json(data.map(gist => ({
+      id: gist.id,
+      description: gist.description,
+      url: gist.html_url,
+      files: Object.keys(gist.files),
+      created_at: gist.created_at,
+      updated_at: gist.updated_at
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Could not fetch gists" });
+  }
+});
+
 app.get("/api/github/:username/pfp", async (req, res) => {
   const { username } = req.params;
   try {
@@ -342,7 +396,6 @@ app.get("/api/status", async (req, res) => {
       stats_map[stat.service_name] = stat;
     });
 
-    // Save current status to database (fire and forget)
     Promise.all([
       save_status_log('Discord API Gateway', discord_status.status, discord_status.responseTime, discord_status.message),
       save_status_log('GitHub API Gateway', github_status.status, github_status.responseTime, github_status.message),
@@ -419,7 +472,6 @@ app.get('/api/status/services', async (req, res) => {
       uptime_map[summary.service_name] = summary;
     });
 
-    // Save current status to database (fire and forget)
     Promise.all([
       save_status_log('Discord API Gateway', discord_status.status, discord_status.responseTime, discord_status.message),
       save_status_log('GitHub API Gateway', github_status.status, github_status.responseTime, github_status.message),
