@@ -8,6 +8,8 @@ Free-to-use Discord and GitHub profile picture (PFP) API.
 
 ### Endpoints Overview
 
+URL: https://avatar-cyan.vercel.app
+
 **Welcome Endpoint:**
 
 * **URL:** `/api`
