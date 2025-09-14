@@ -59,25 +59,33 @@ async function get_avatar(userId, options = {}) {
   const { size = 512, format = null } = options;
   const user = await get_user_data(userId);
 
-  let url;
+  let avatar_url;
   if (user.avatar) {
     let ext = user.avatar.startsWith("a_") ? "gif" : "png";
     if (format) ext = format;
 
-    url = `https://cdn.discordapp.com/avatars/${userId}/${user.avatar}.${ext}?size=${size}`;
+    avatar_url = `https://cdn.discordapp.com/avatars/${userId}/${user.avatar}.${ext}?size=${size}`;
   } else {
     const index = user.discriminator ? parseInt(user.discriminator) % 5 : 0;
-    url = `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+    avatar_url = `https://cdn.discordapp.com/embed/avatars/${index}.png`;
+  }
+
+  let banner_url = null;
+  if (user.banner) {
+    let ext = user.banner.startsWith("a_") ? "gif" : "png";
+    banner_url = `https://cdn.discordapp.com/banners/${userId}/${user.banner}.${ext}?size=${size}`;
   }
 
   return {
     id: user.id,
     username: user.username,
     display_name: user.global_name || user.username,
-    avatarUrl: url,
+    avatarUrl: avatar_url,
+    bannerUrl: banner_url,
     discriminator: user.discriminator,
   };
 }
+
 
 async function get_banner(userId, options = {}) {
   const { size = 512, format = null } = options;
