@@ -1,187 +1,145 @@
-# Discord & GitHub Avatar API
+# Discord & GitHub Avatar API  
 
 Free-to-use Discord and GitHub profile picture (PFP) API.
 
 ---
 
-## Usage
+## Quick Start
 
-### Endpoints Overview
-
-URL: https://avatar-cyan.vercel.app
-
-**Welcome Endpoint:**
-
-* **URL:** `/api`
-* **Method:** GET
-* **Description:** Returns a welcome message along with a list of available endpoints.
-
----
-
-### Discord Endpoints
-
-**Get Avatar Data (JSON):**
-
-* **URL:** `/api/:userId`
-* **Method:** GET
-* **Description:** Returns the avatar URL, username, and display name for the specified Discord user.
-
-  **Example Response:**
-
-  ```json
-  {
-    "id": "773952016036790272",
-    "username": "yellowgreg",
-    "display_name": "yellowgreg",
-    "avatarUrl": "https://cdn.discordapp.com/avatars/773952016036790272/b34cae8e284c60807c1b880f52b988d8.png?size=512",
-    "discriminator": "0"
-  }
-  ```
-
----
-
-**Redirect to Avatar Image:**
-
-* **URLs:**
-
-  * `/api/pfp/:userId/image` (default size: 512)
-  * `/api/pfp/:userId/smallimage` (default size: 128)
-  * `/api/pfp/:userId/bigimage` (default size: 1024)
-  * `/api/pfp/:userId/superbigimage` (default size: 4096)
-* **Method:** GET
-* **Description:** Redirects to the actual image URL of the user’s avatar.
-* **Optional Query Parameters:**
-
-  * `size` – override default size (64–4096, powers of 2)
-  * `format` – specify image format (`png`, `jpeg`, `webp`, `gif`)
-
-**Example URL with format:**
-
+**Base URL:**  
+```text
+https://avatar-cyan.vercel.app
 ```
-/api/pfp/773952016036790272/image?size=1024&format=webp
+
+> Test it → [GET `/api`](https://avatar-cyan.vercel.app/api)
+
+---
+
+## Discord Endpoints
+
+| Endpoint | Method | Description |
+|--------|--------|-----------|
+| `/api/:userId` | `GET` | **User Info (JSON)** – avatar, name, discriminator, and etc. |
+| `/api/pfp/:userId/image` | `GET` | Redirect → Avatar **(512px)** |
+| `/api/pfp/:userId/smallimage` | `GET` | → **128px** |
+| `/api/pfp/:userId/bigimage` | `GET` | → **1024px** |
+| `/api/pfp/:userId/superbigimage` | `GET` | → **4096px** |
+| `/api/pfp/:userId/:size` | `GET` | Custom size (64–4096, power of 2) |
+| `/api/user/:userId/raw` | `GET` | **Full Discord user object** (avatar, banner, flags, etc.) |
+| `/api/banner/:userId` | `GET` | Banner URL in **JSON** |
+| `/api/banner/:userId/image` | `GET` | Redirect → Banner image |
+
+### Query Parameters (Optional)
+| Param | Values | Description |
+|------|--------|-----------|
+| `size` | `64`, `128`, `256`, `512`, `1024`, `2048`, `4096` | Override image size |
+| `format` | `png`, `jpeg`, `webp`, `gif` | Override image format |
+
+---
+
+### Example: Discord Avatar (1024px, WebP)
+```text
+https://avatar-cyan.vercel.app/api/pfp/773952016036790272/image?size=1024&format=webp
+```
+
+### Example Response: `/api/773952016036790272`
+```json
+{
+  "id": "773952016036790272",
+  "username": "yellowgreg",
+  "display_name": "yellowgreg",
+  "avatarUrl": "https://cdn.discordapp.com/avatars/773952016036790272/b34cae8e284c60807c1b880f52b988d8.png?size=512",
+  "discriminator": "0"
+}
 ```
 
 ---
 
-**Custom Avatar Size Endpoint:**
+## GitHub Endpoints
 
-* **URL:** `/api/pfp/:userId/:size`
-* **Method:** GET
-* **Description:** Returns the avatar image for a specific size. Size must be a power of two between 64 and 4096. Defaults to 512 if invalid.
-* **Optional Query Parameters:**
+| Endpoint | Method | Description |
+|--------|--------|-----------|
+| `/api/github/:username` | `GET` | **User Profile (JSON)** – name, bio, stats |
+| `/api/github/:username/pfp` | `GET` | Redirect → GitHub avatar |
+| `/api/github/:username/repos` | `GET` | List of **public repositories** |
+| `/api/github/:username/gists` | `GET` | List of **public gists** |
 
-  * `format` – `png`, `jpeg`, `webp`, or `gif`
+---
 
-**Example URL:**
-
+### Example: GitHub Profile
+```text
+https://avatar-cyan.vercel.app/api/github/YellowGregs
 ```
-/api/pfp/773952016036790272/512?format=webp
+
+### Example Response
+```json
+{
+  "id": 172260606,
+  "username": "YellowGregs",
+  "display_name": "YellowGreg",
+  "avatarUrl": "https://avatars.githubusercontent.com/u/172260606?v=4",
+  "profileUrl": "https://github.com/YellowGregs",
+  "bio": "Joined GitHub on March 10, 2022.",
+  "public_repos": 28,
+  "followers": 17,
+  "following": 16,
+  "location": "USA",
+  "company": null,
+  "blog": ""
+}
 ```
 
 ---
 
-**Get Raw User Data:**
+## Status Embeds
 
-* **URL:** `/api/user/:userId/raw`
-* **Method:** GET
-* **Description:** Returns the full JSON data from the Discord API, including avatar, banner, accent color, flags, and collectibles.
+```md
+![API Status](https://avatar-cyan.vercel.app/api/status/embed?theme=dark&label=Avatar%20cyan)
+```
 
----
-
-**Banner Endpoints:**
-
-* **JSON Response:**
-
-  * **URL:** `/api/banner/:userId`
-  * **Method:** GET
-  * **Description:** Returns the banner URL in JSON if available.
-  * **Optional Query Parameters:**
-
-    * `size` – banner size in pixels (powers of 2, default 512)
-    * `format` – `png`, `jpeg`, `webp`, or `gif`
-
-* **Image Redirect:**
-
-  * **URL:** `/api/banner/:userId/image`
-  * **Method:** GET
-  * **Description:** Redirects to the banner image URL.
+![API Status](https://avatar-cyan.vercel.app/api/status/embed?theme=dark&size=md&label=Avatar-cyan&rounded=true&border=true)  
+![Backend](https://avatar-cyan.vercel.app/api/status/embed?theme=light&size=sm&label=Backend&accent=%23ff6b6b)  
+![Custom Size](https://avatar-cyan.vercel.app/api/status/embed?theme=dark&width=280&height=70&label=Custom%20Size&accent=%23a855f7)
 
 ---
 
-### GitHub Endpoints
-
-**Get GitHub User Data (JSON):**
-
-* **URL:** `/api/github/:username`
-* **Method:** GET
-* **Description:** Returns public GitHub user data including username, display name, avatar URL, profile URL, bio, and stats.
-
-  **Example Response:**
-
-  ```json
-  {
-    "id": 172260606,
-    "username": "YellowGregs",
-    "display_name": "YellowGreg",
-    "avatarUrl": "https://avatars.githubusercontent.com/u/172260606?v=4",
-    "profileUrl": "https://github.com/YellowGregs",
-    "bio": "Joined GitHub on March 10, 2022.",
-    "public_repos": 26,
-    "followers": 14,
-    "following": 12,
-    "location": "USA",
-    "company": null,
-    "blog": ""
-  }
-  ```
-
-**Redirect to GitHub Avatar Image:**
-
-* **URL:** `/api/github/:username/pfp`
-* **Method:** GET
-* **Description:** Redirects to the GitHub user's avatar image.
+### Embed Customization
+| Param | Values | Example |
+|------|--------|-------|
+| `theme` | `dark` / `light` | `theme=light` |
+| `size` | `sm` / `md` / `lg` | `size=lg` |
+| `width` / `height` | any px | `width=500&height=160` |
+| `rounded` | `true` / `false` | `rounded=false` |
+| `border` | `true` / `false` | `border=true` |
+| `hideId` | `true` / `false` | `hideId=true` |
+| `accent` | `#rrggbb` | `accent=%2300ff88` |
+| `label` | any text | `label=My%20API` |
 
 ---
 
-**Get GitHub Repositories:**
+## Full Endpoint Table
 
-* **URL:** `/api/github/:username/repos`
-* **Method:** GET
-* **Description:** Returns a list of public repositories for the GitHub user.
-
----
-
-**Get GitHub Gists:**
-
-* **URL:** `/api/github/:username/gists`
-* **Method:** GET
-* **Description:** Returns a list of public gists for the GitHub user.
-
----
-
-### Full Endpoint Table
-
-| Endpoint                         | Method | Description                                                      |
-| -------------------------------- | ------ | ---------------------------------------------------------------- |
-| `/api`                           | GET    | Welcome message + list of available endpoints                    |
-| `/api/:userId`                   | GET    | Returns avatar info (JSON)                                       |
-| `/api/pfp/:userId/image`         | GET    | Redirects to avatar (512 px)                                     |
-| `/api/pfp/:userId/smallimage`    | GET    | Redirects to avatar (128 px)                                     |
-| `/api/pfp/:userId/bigimage`      | GET    | Redirects to avatar (1024 px)                                    |
-| `/api/pfp/:userId/superbigimage` | GET    | Redirects to avatar (4096 px)                                    |
-| `/api/pfp/:userId/:size`         | GET    | Redirects to avatar at custom size (64–4096 px, defaults to 512) |
-| `/api/user/:userId/raw`          | GET    | Returns full raw Discord user JSON data                          |
-| `/api/banner/:userId`            | GET    | Returns banner URL in JSON                                       |
-| `/api/banner/:userId/image`      | GET    | Redirects to banner image                                        |
-| `/api/github/:username`          | GET    | Returns GitHub user info (JSON)                                  |
-| `/api/github/:username/pfp`      | GET    | Redirects to GitHub avatar image                                 |
-| `/api/github/:username/repos`    | GET    | Returns list of public repositories for GitHub user              |
-| `/api/github/:username/gists`    | GET    | Returns list of public gists for GitHub user                     |
+| Endpoint | Method | Description |
+|--------|--------|-----------|
+| `/api` | `GET` | Welcome message + full endpoint list |
+| `/api/:userId` | `GET` | Discord user info (JSON) |
+| `/api/pfp/:userId/image` | `GET` | Avatar redirect (512px) |
+| `/api/pfp/:userId/smallimage` | `GET` | Avatar redirect (128px) |
+| `/api/pfp/:userId/bigimage` | `GET` | Avatar redirect (1024px) |
+| `/api/pfp/:userId/superbigimage` | `GET` | Avatar redirect (4096px) |
+| `/api/pfp/:userId/:size` | `GET` | Avatar at custom size (64–4096) |
+| `/api/user/:userId/raw` | `GET` | Raw Discord user data |
+| `/api/banner/:userId` | `GET` | Banner URL in JSON |
+| `/api/banner/:userId/image` | `GET` | Redirect to banner image |
+| `/api/github/:username` | `GET` | GitHub user profile (JSON) |
+| `/api/github/:username/pfp` | `GET` | Redirect to GitHub avatar |
+| `/api/github/:username/repos` | `GET` | Public repos list |
+| `/api/github/:username/gists` | `GET` | Public gists list |
+| `/api/status/embed` | `GET` | SVG status badge |
 
 ---
 
-DOC (Ignore):
-
-* [https://api.github.com/](https://api.github.com/)
-* [https://docs.github.com/en/rest?apiVersion=2022-11-28](https://docs.github.com/en/rest?apiVersion=2022-11-28)
-* [https://discord.com/developers/docs/intro](https://discord.com/developers/docs/intro)
+## DOC (Ignore):
+- https://api.github.com/
+- https://discord.com/developers/docs/intro
+- https://docs.github.com/en/rest
