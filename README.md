@@ -111,7 +111,6 @@ https://avatar-cyan.vercel.app/api/github/YellowGregs
 | `width` / `height` | any px | `width=500&height=160` |
 | `rounded` | `true` / `false` | `rounded=false` |
 | `border` | `true` / `false` | `border=true` |
-| `hideId` | `true` / `false` | `hideId=true` |
 | `accent` | `#rrggbb` | `accent=%2300ff88` |
 | `label` | any text | `label=My%20API` |
 
