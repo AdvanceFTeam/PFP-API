@@ -2,6 +2,8 @@
 
 Free-to-use Discord and GitHub profile picture (PFP) API.
 
+- ### **Vercel has finally paused, so please deploy your own pfp api url for your website since [avatar-cyan.vercel.app](https://avatar-cyan.vercel.app) wont work no more**
+
 ---
 
 ## Quick Start
