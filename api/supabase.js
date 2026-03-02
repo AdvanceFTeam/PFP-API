@@ -1,198 +1,210 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+// This is Optional just for analytics and usage tracking
+// This file is OPTIONAL - the API works perfectly fine without it
+// To enable: Set SUPABASE_URL and SUPABASE_SERVICE_KEY in your .env file 
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+require("dotenv").config();
+const { createClient } = require("@supabase/supabase-js");
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error(
-    'Missing Supabase environment variables. Set both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the .env file'
-  );
-}
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+let supabase = null;
+let analyticsEnabled = false;
 
-/**
- * Save a status check result to the database
- * @param {string} serviceName - The name of the service (like "Discord API")
- * @param {string} status - Current status: 'operational', 'degraded', 'down', or 'maintenance'
- * @param {number} responseTime - How long the response took (in milliseconds)
- * @param {string} message - Any extra info or error message
- * @returns {Promise<Object>} - The inserted data
- */
-async function save_status_log(service_name, status, response_time, message) {
+if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
   try {
-    const { data, error } = await supabase
-      .from('status_logs')
-      .insert([
-        {
-          service_name: service_name,
-          status,
-          response_time: response_time,
-          message,
-          timestamp: new Date().toISOString(),
-        },
-      ])
-      .select();
-
-    if (error) {
-      console.error('Error saving status log:', error);
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Failed to save status log:', error);
-    throw error;
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    analyticsEnabled = true;
+    console.log("Supabase analytics enabled");
+  } catch (err) {
+    console.warn("Supabase failed, analytics disabled:", err.message);
   }
+} else {
+  console.log("Supabase not configured - analytics disabled (API will work normally)");
 }
 
-/**
- * Remove old logs from the database
- * @param {number} days_to_keep - How many days to keep logs for (default 90)
- * @returns {Promise<Object>} - Info about deleted records
- */
-async function clean_old_logs(days_to_keep = 90) {
+async function log_api_usage(data) {
+  if (!analyticsEnabled || !supabase) return;
+  
   try {
-    const { data, error } = await supabase.rpc('cleanup_old_status_logs', {
-      days_to_keep: days_to_keep,
+    const { path, origin, referer, user_agent } = data;
+    
+    await supabase.from("api_usage_logs").insert({
+      path,
+      origin: origin || null,
+      referer: referer || null,
+      user_agent: user_agent || "unknown",
+      timestamp: new Date().toISOString()
     });
-
-    if (error) {
-      console.error('Error cleaning old logs:', error);
-      throw error;
-    }
-
-    console.log(
-      `Removed logs older than ${days_to_keep} days: ${
-        data?.[0]?.deleted_count || 0
-      } records deleted`
-    );
-    return data;
-  } catch (error) {
-    console.error('Failed to clean old logs:', error);
-    throw error;
+  } catch (err) {
+    console.error("Failed to log API usage:", err.message);
   }
 }
 
-function fallback_uptime_data(service_name, hours) {
-  const now = new Date();
-  return {
-    service_name: service_name,
-    uptime_percentage: 99.0,
-    total_checks: 0,
-    operational_checks: 0,
-    degraded_checks: 0,
-    down_checks: 0,
-    maintenance_checks: 0,
-    average_response_time: 0,
-    period_start: new Date(now - hours * 60 * 60 * 1000).toISOString(),
-    period_end: now.toISOString(),
-  };
+async function save_status_log(service_name, status, response_time, message = null) {
+  if (!analyticsEnabled || !supabase) return;
+  
+  try {
+    await supabase.from("service_status_logs").insert({
+      service_name,
+      status,
+      response_time,
+      message,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("Failed to save status log:", err.message);
+  }
 }
 
-/**
- * Get uptime info for a service over the past hours
- * @param {string} service_name - The service name
- * @param {number} hours - How many hours to look back (default 24)
- * @returns {Promise<Object>} - Uptime details
- */
 async function get_service_uptime(service_name, hours = 24) {
+  if (!analyticsEnabled || !supabase) return { uptime: 99.9, total_checks: 0 };
+  
   try {
-    const { data, error } = await supabase.rpc('get_service_uptime', {
-      service_name_param: service_name,
-      hours_back: hours,
-    });
-
-    if (error) {
-      console.error(`Error fetching uptime for ${service_name}:`, error);
-      throw error;
-    }
-
-    return data?.[0] || fallback_uptime_data(service_name, hours);
-  } catch (error) {
-    console.error(`Failed to get uptime for ${service_name}:`, error);
-    return fallback_uptime_data(service_name, hours);
-  }
-}
-
-/**
- * Get incidents for a service over the past days
- * @param {string} service_name - The service name
- * @param {number} days - How many days to look back (default 7)
- * @returns {Promise<Array>} - List of incidents
- */
-async function get_service_incidents(service_name, days = 7) {
-  try {
-    const { data, error } = await supabase.rpc('get_service_incidents', {
-      service_name_param: service_name,
-      days_back: days,
-    });
-
-    if (error) {
-      console.error(`Error fetching incidents for ${service_name}:`, error);
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error(`Failed to get incidents for ${service_name}:`, error);
-    return [];
-  }
-}
-
-/**
- * Get uptime summary for all services
- * @returns {Promise<Array>} - List of all services with uptime info
- */
-async function get_uptime_summary() {
-  try {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    
     const { data, error } = await supabase
-      .from('service_uptime_summary')
-      .select('*')
-      .order('service_name');
+      .from("service_status_logs")
+      .select("status")
+      .eq("service_name", service_name)
+      .gte("timestamp", since);
+    
+    if (error) throw error;
+    if (!data || data.length === 0) return { uptime: 99.9, total_checks: 0 };
+    
+    const operational = data.filter(log => log.status === "operational").length;
+    const uptime = (operational / data.length) * 100;
+    
+    return { uptime: parseFloat(uptime.toFixed(2)), total_checks: data.length };
+  } catch (err) {
+    console.error("Failed to get service uptime:", err.message);
+    return { uptime: 99.9, total_checks: 0 };
+  }
+}
 
-    if (error) {
-      console.error('Error fetching uptime summary:', error);
-      throw error;
-    }
-
+async function get_service_incidents(service_name, days = 7) {
+  if (!analyticsEnabled || !supabase) return [];
+  
+  try {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    
+    const { data, error } = await supabase
+      .from("service_status_logs")
+      .select("*")
+      .eq("service_name", service_name)
+      .in("status", ["down", "degraded"])
+      .gte("timestamp", since)
+      .order("timestamp", { ascending: false })
+      .limit(50);
+    
+    if (error) throw error;
     return data || [];
-  } catch (error) {
-    console.error('Failed to get uptime summary:', error);
+  } catch (err) {
+    console.error("Failed to get service incidents:", err.message);
     return [];
   }
 }
 
-/**
- * Get overall stats for all services over a number of days
- * @param {number} days - How many days to look back (default 30)
- * @returns {Promise<Array>} - List of service stats
- */
-async function get_all_service_statistics(days = 30) {
+async function get_uptime_summary() {
+  if (!analyticsEnabled || !supabase) return [];
+  
   try {
-    const { data, error } = await supabase.rpc('get_service_statistics', {
-      days_back: days,
+    const services = [
+      "Discord API Gateway",
+      "GitHub API Gateway",
+      "Image Processing Engine",
+      "Cache & Rate Limiting"
+    ];
+    
+    const summaries = await Promise.all(
+      services.map(async (service_name) => {
+        const uptime24h = await get_service_uptime(service_name, 24);
+        const uptime7d = await get_service_uptime(service_name, 24 * 7);
+        
+        return {
+          service_name,
+          uptime_24h: uptime24h.uptime,
+          uptime_7d: uptime7d.uptime,
+          checks_24h: uptime24h.total_checks,
+          checks_7d: uptime7d.total_checks
+        };
+      })
+    );
+    
+    return summaries;
+  } catch (err) {
+    console.error("Failed to get uptime summary:", err.message);
+    return [];
+  }
+}
+
+async function get_all_service_statistics(days = 7) {
+  if (!analyticsEnabled || !supabase) return [];
+  
+  try {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    
+    const { data, error } = await supabase
+      .from("service_status_logs")
+      .select("service_name, status, response_time")
+      .gte("timestamp", since);
+    
+    if (error) throw error;
+    if (!data) return [];
+    
+    const serviceStats = {};
+    
+    data.forEach(log => {
+      if (!serviceStats[log.service_name]) {
+        serviceStats[log.service_name] = {
+          total: 0,
+          operational: 0,
+          degraded: 0,
+          down: 0,
+          response_times: []
+        };
+      }
+      
+      serviceStats[log.service_name].total++;
+      serviceStats[log.service_name][log.status]++;
+      if (log.response_time) {
+        serviceStats[log.service_name].response_times.push(log.response_time);
+      }
     });
-
-    if (error) {
-      console.error('Error fetching service stats:', error);
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Failed to get service stats:', error);
+    
+    return Object.entries(serviceStats).map(([service_name, stats]) => {
+      const uptime_percentage = stats.total > 0 
+        ? ((stats.operational / stats.total) * 100).toFixed(2)
+        : "99.00";
+      
+      const avg_response_time = stats.response_times.length > 0
+        ? Math.round(stats.response_times.reduce((a, b) => a + b, 0) / stats.response_times.length)
+        : 0;
+      
+      return {
+        service_name,
+        uptime_percentage,
+        avg_response_time,
+        total_checks: stats.total,
+        operational_count: stats.operational,
+        degraded_count: stats.degraded,
+        down_count: stats.down,
+        incident_count: stats.degraded + stats.down
+      };
+    });
+  } catch (err) {
+    console.error("Failed to get service statistics:", err.message);
     return [];
   }
 }
 
 module.exports = {
   supabase,
+  analyticsEnabled,
+  log_api_usage,
   save_status_log,
-  clean_old_logs,
   get_service_uptime,
   get_service_incidents,
   get_uptime_summary,
-  get_all_service_statistics,
+  get_all_service_statistics
 };
