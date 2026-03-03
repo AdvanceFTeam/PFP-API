@@ -274,7 +274,6 @@ app.get("/api/version", (req, res) => {
     changelog: {
       "3.1.0": [
         "Auto-format detection (webp) based on Accept header",
-        "More JSON endpoints with badges, flags, banner, accent color",
         "Batch endpoint for fetching multiple users at once (max 50)",
         "Multi-source avatar endpoint with Discord + GitHub fallback"
       ]
@@ -346,6 +345,84 @@ app.get("/api/batch", async (req, res) => {
   
   res.json(response);
 });
+
+app.get("/api/status", async (req, res) => {
+  res.set("Cache-Control", "public, max-age=60, s-maxage=60");
+  
+  try {
+    const [discordStatus, githubStatus] = await Promise.all([
+      check_discord_api(),
+      check_github_api()
+    ]);
+    
+    const allOperational = discordStatus.status === 'operational' && githubStatus.status === 'operational';
+    const anyDown = discordStatus.status === 'down' || githubStatus.status === 'down';
+    
+    const overallStatus = anyDown ? 'down' : (allOperational ? 'operational' : 'degraded');
+    
+    res.json({
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      services: {
+        discord: discordStatus,
+        github: githubStatus,
+        cache: {
+          status: 'operational',
+          stats: cache.getStats()
+        }
+      },
+      uptime: {
+        discord: discordStatus.status === 'operational' ? '99.9%' : '0%',
+        github: githubStatus.status === 'operational' ? '99.9%' : '0%'
+      }
+    });
+  } catch (err) {
+    console.error('Status check error:', err);
+    res.status(500).json({ 
+      status: 'unknown',
+      error: 'Failed to check service status',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get("/api/status/services", async (req, res) => {
+  res.set("Cache-Control", "public, max-age=60, s-maxage=60");
+  
+  try {
+    const [discordStatus, githubStatus] = await Promise.all([
+      check_discord_api(),
+      check_github_api()
+    ]);
+    
+    res.json({
+      services: [
+        {
+          name: 'Discord API',
+          ...discordStatus,
+          uptime_24h: discordStatus.status === 'operational' ? 99.9 : 0
+        },
+        {
+          name: 'GitHub API',
+          ...githubStatus,
+          uptime_24h: githubStatus.status === 'operational' ? 99.9 : 0
+        },
+        {
+          name: 'Cache System',
+          status: 'operational',
+          responseTime: 1,
+          uptime_24h: 100,
+          stats: cache.getStats()
+        }
+      ],
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Services status error:', err);
+    res.status(500).json({ error: 'Failed to check services' });
+  }
+});
+
 
 app.get("/api/:userId", async (req, res) => {
   res.set("Cache-Control", "public, max-age=21600, s-maxage=21600, stale-while-revalidate=86400");
@@ -649,6 +726,21 @@ app.get("/api/github/:username/pfp", async (req, res) => {
   }
 });
 
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function safeColor(c, fallback) {
+  if (!c || typeof c !== 'string') return fallback;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+  return hex.test(c.trim()) ? c.trim() : fallback;
+}
+
 async function check_discord_api() {
   try {
     const start = Date.now();
@@ -690,80 +782,111 @@ async function check_github_api() {
   }
 }
 
-app.get("/api/status", async (req, res) => {
-  res.set("Cache-Control", "public, max-age=60, s-maxage=60");
-  
+app.get("/api/status/embed", async (req, res) => {
+  res.set("Content-Type", "image/svg+xml");
+  res.set("Cache-Control", "public, max-age=300");
+
+  const { theme = "dark", label = "API Status", size = "md", width, height, rounded = "true", border = "false", accent } = req.query;
+
+  const dark = theme === "dark";
+  const bg = dark ? "#111111" : "#ffffff";
+  const txt = dark ? "#f5f5f5" : "#0a0a0a";
+  const stroke = border === "true" ? (dark ? "#2a2a2a" : "#e2e8f0") : "none";
+
+  const presets = {
+    sm: { w: 160, h: 48, dot: 7, lbl: 13, st: 11 },
+    md: { w: 200, h: 56, dot: 8, lbl: 14, st: 12 },
+    lg: { w: 240, h: 64, dot: 9, lbl: 15, st: 13 }
+  };
+  const p = presets[size] || presets.md;
+  const w = width ? Number(width) : p.w;
+  const h = height ? Number(height) : p.h;
+  const dotR = p.dot;
+  const lblFs = p.lbl;
+  const statFs = p.st;
+  const rx = rounded === "true" ? "14" : "6";
+
   try {
-    const [discordStatus, githubStatus] = await Promise.all([
-      check_discord_api(),
-      check_github_api()
-    ]);
-    
-    const allOperational = discordStatus.status === 'operational' && githubStatus.status === 'operational';
-    const anyDown = discordStatus.status === 'down' || githubStatus.status === 'down';
-    
-    const overallStatus = anyDown ? 'down' : (allOperational ? 'operational' : 'degraded');
-    
-    res.json({
-      status: overallStatus,
-      timestamp: new Date().toISOString(),
-      services: {
-        discord: discordStatus,
-        github: githubStatus,
-        cache: {
-          status: 'operational',
-          stats: cache.getStats()
-        }
-      },
-      uptime: {
-        discord: discordStatus.status === 'operational' ? '99.9%' : '0%',
-        github: githubStatus.status === 'operational' ? '99.9%' : '0%'
-      }
-    });
-  } catch (err) {
-    console.error('Status check error:', err);
-    res.status(500).json({ 
-      status: 'unknown',
-      error: 'Failed to check service status',
-      timestamp: new Date().toISOString()
-    });
+    const apiRes = await fetch(`${req.protocol}://${req.get("host")}/api/status`);
+    const data = await apiRes.json();
+    const status = (data.status || "unknown").toLowerCase();
+
+    const cfg = {
+      operational: { c: "#10b981", t: "UP" },
+      degraded: { c: "#f59e0b", t: "DEGRADED" },
+      down: { c: "#ef4444", t: "DOWN" },
+      unknown: { c: "#94a3b8", t: "UNKNOWN" }
+    };
+    const { c: dotColor, t: statusText } = cfg[status] || cfg.unknown;
+    const finalDot = accent ? safeColor(accent, dotColor) : dotColor;
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <defs><clipPath id="card"><rect width="${w}" height="${h}" rx="${rx}"/></clipPath></defs>
+  <a href="${req.protocol}://${req.get("host")}/api/status" target="_blank" style="text-decoration:none">
+    <rect width="${w}" height="${h}" fill="${bg}" rx="${rx}" stroke="${stroke}" stroke-width="1.5" clip-path="url(#card)"/>
+    <circle cx="${w * 0.18}" cy="${h / 2}" r="${dotR}" fill="${finalDot}"/>
+    <text x="${w * 0.33}" y="${h * 0.46}" fill="${txt}" font-family="system-ui,sans-serif" font-size="${lblFs}" font-weight="600">${escapeXml(label)}</text>
+    <text x="${w * 0.33}" y="${h * 0.78}" fill="${finalDot}" font-family="system-ui,sans-serif" font-size="${statFs}" font-weight="500">${statusText}</text>
+  </a>
+</svg>`.trim();
+
+    res.send(svg);
+  } catch (e) {
+    console.error("Status embed error:", e);
+    res.status(500).send(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="56"><rect width="200" height="56" rx="14" fill="#111"/><text x="100" y="35" text-anchor="middle" fill="#ef4444" font-family="system-ui" font-size="14" font-weight="600">API ERROR</text></svg>`);
   }
 });
 
-app.get("/api/status/services", async (req, res) => {
-  res.set("Cache-Control", "public, max-age=60, s-maxage=60");
-  
+app.get("/api/discord/:userId/embed", async (req, res) => {
+  res.set("Content-Type", "image/svg+xml");
+  res.set("Cache-Control", "public, max-age=3600");
+
+  const { userId } = req.params;
+  const { theme = "dark", width, height, rounded = "true", accent, showBadges = "true" } = req.query;
+
+  if (!isValidUserIdCached(userId)) {
+    return res.status(400).send(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120"><rect width="400" height="120" rx="14" fill="#111"/><text x="200" y="65" text-anchor="middle" fill="#ef4444" font-family="system-ui" font-size="16" font-weight="600">Invalid User ID</text></svg>`);
+  }
+
+  const dark = theme === "dark";
+  const bg = dark ? "#111111" : "#ffffff";
+  const txt = dark ? "#f5f5f5" : "#0a0a0a";
+  const sub = dark ? "#94a3b8" : "#64748b";
+  const cardAccent = accent ? safeColor(accent, "#3b82f6") : "#3b82f6";
+
+  const w = width ? Number(width) : 400;
+  const h = height ? Number(height) : 120;
+  const rx = rounded === "true" ? "14" : "6";
+
   try {
-    const [discordStatus, githubStatus] = await Promise.all([
-      check_discord_api(),
-      check_github_api()
-    ]);
-    
-    res.json({
-      services: [
-        {
-          name: 'Discord API',
-          ...discordStatus,
-          uptime_24h: discordStatus.status === 'operational' ? 99.9 : 0
-        },
-        {
-          name: 'GitHub API',
-          ...githubStatus,
-          uptime_24h: githubStatus.status === 'operational' ? 99.9 : 0
-        },
-        {
-          name: 'Cache System',
-          status: 'operational',
-          responseTime: 1,
-          uptime_24h: 100,
-          stats: cache.getStats()
-        }
-      ],
-      timestamp: new Date().toISOString()
-    });
+    const user = await get_user_data(userId);
+    const avatarHash = user.avatar || "default";
+    const avatarExt = user.avatar?.startsWith("a_") ? "gif" : "png";
+    const avatarUrl = user.avatar
+      ? `https://cdn.discordapp.com/avatars/${userId}/${user.avatar}.${avatarExt}?size=128`
+      : `https://cdn.discordapp.com/embed/avatars/${user.discriminator ? parseInt(user.discriminator) % 5 : 0}.png`;
+
+    const username = escapeXml(user.username || "Unknown");
+    const displayName = escapeXml(user.global_name || user.username || "Unknown");
+    const badges = parseUserFlags(user.public_flags);
+    const badgeText = showBadges === "true" && badges.length > 0 ? escapeXml(badges.slice(0, 2).join(", ")) : "";
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <defs>
+    <clipPath id="card"><rect width="${w}" height="${h}" rx="${rx}"/></clipPath>
+    <clipPath id="avatar"><circle cx="60" cy="60" r="32"/></clipPath>
+  </defs>
+  <rect width="${w}" height="${h}" fill="${bg}" rx="${rx}" stroke="${cardAccent}" stroke-width="2" clip-path="url(#card)"/>
+  <image href="${avatarUrl}" x="28" y="28" width="64" height="64" clip-path="url(#avatar)"/>
+  <text x="110" y="50" fill="${txt}" font-family="system-ui,sans-serif" font-size="18" font-weight="600">${displayName}</text>
+  <text x="110" y="72" fill="${sub}" font-family="system-ui,sans-serif" font-size="14">@${username}</text>
+  ${badgeText ? `<text x="110" y="94" fill="${cardAccent}" font-family="system-ui,sans-serif" font-size="12">${badgeText}</text>` : ""}
+</svg>`.trim();
+
+    res.send(svg);
   } catch (err) {
-    console.error('Services status error:', err);
-    res.status(500).json({ error: 'Failed to check services' });
+    console.error("Discord embed error:", err);
+    res.status(500).send(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120"><rect width="400" height="120" rx="14" fill="#111"/><text x="200" y="65" text-anchor="middle" fill="#ef4444" font-family="system-ui" font-size="16" font-weight="600">Failed to fetch user</text></svg>`);
   }
 });
 
