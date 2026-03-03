@@ -114,8 +114,8 @@ function ParseUserFlags(publicFlags) {
   
   const flagMap = {
     1: "Discord Employee", 2: "Partnered Server Owner", 4: "HypeSquad Events",
-    8: "Bug Hunter Level 1", 64: "House Bravery", 128: "House Brilliance",
-    256: "House Balance", 512: "Early Supporter", 1024: "Team User",
+    8: "Bug Hunter Level 1", 64: "HypeSquad Bravery", 128: "HypeSquad Brilliance",
+    256: "HypeSquad Balance", 512: "Early Supporter", 1024: "Team User",
     4096: "Bug Hunter Level 2", 16384: "Verified Bot", 65536: "Early Verified Bot Developer",
     131072: "Discord Certified Moderator", 262144: "Bot HTTP Interactions", 1048576: "Active Developer"
   };
